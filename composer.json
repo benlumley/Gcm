@@ -1,8 +1,8 @@
 {
-    "name": "benlumley/gcm",
+    "name": "endroid/gcm",
     "description": "Endroid Google Cloud Messaging (updated to newer endpoint for iOS)",
     "keywords": ["endroid", "gcm", "push", "notification", "notifications", "google", "cloud", "messaging"],
-    "homepage": "https://github.com/benlumley/Gcm",
+    "homepage": "https://github.com/endroid/Gcm",
     "type": "library",
     "license": "MIT",
     "authors": [
@@ -10,9 +10,6 @@
             "name": "Jeroen van den Enden",
             "email": "info@endroid.nl",
             "homepage": "http://endroid.nl/"
-        },
-        {
-            "name": "Ben Lumley"
         }
     ],
     "require": {
