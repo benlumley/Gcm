@@ -17,7 +17,7 @@ class Client
     /**
      * @var string
      */
-    protected $apiUrl = 'https://android.googleapis.com/gcm/send';
+    protected $apiUrl = 'https://gcm-http.googleapis.com/gcm/send';
 
     /**
      * @var string
@@ -66,7 +66,7 @@ class Client
      *
      * @return bool
      */
-    public function send($data, array $registrationIds, array $options = array())
+    public function send(array $registrationIds, $notification, array $data = array(), array $options = array())
     {
         $headers = array(
             'Authorization: key='.$this->apiKey,
@@ -74,6 +74,7 @@ class Client
         );
 
         $data = array_merge($options, array(
+            'notification' => $notification,
             'data' => $data,
         ));
 
