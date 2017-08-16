@@ -11,6 +11,7 @@ namespace Endroid\Gcm;
 
 use Buzz\Browser;
 use Buzz\Client\MultiCurl;
+use Buzz\Message\Response;
 
 class Client
 {
@@ -30,12 +31,17 @@ class Client
     protected $registrationIdMaxCount = 1000;
 
     /**
+     * @var MultiCurl
+     */
+    protected $client;
+
+    /**
      * @var Browser
      */
     protected $browser;
 
     /**
-     * @var array
+     * @var Response[]
      */
     protected $responses;
 
@@ -53,43 +59,44 @@ class Client
             $this->apiUrl = $apiUrl;
         }
 
-        $this->browser = new Browser(new MultiCurl());
-        $this->browser->getClient()->setVerifyPeer(false);
+        $this->client = new MultiCurl();
+        $this->client->setVerifyPeer(false);
+        $this->browser = new Browser($this->client);
     }
 
     /**
-     * Sends the data to the given registration ID's via the GCM server.
+     * Sends the message via the GCM server.
      *
      * @param mixed $data
      * @param array $registrationIds
-     * @param array $options         to add along with message, such as collapse_key, time_to_live, delay_while_idle
+     * @param array $options
      *
      * @return bool
      */
     public function send(array $registrationIds, $notification, array $data = array(), array $options = array())
     {
-        $headers = array(
-            'Authorization: key='.$this->apiKey,
-            'Content-Type: application/json',
-        );
+        $this->responses = [];
 
-        $data = array_merge($options, array(
+
+        $data = array_merge($options, [
             'notification' => $notification,
             'data' => $data,
-        ));
+        ]);
 
-        // Chunk number of registration ID's according to the maximum allowed by GCM
-        $chunks = array_chunk($registrationIds, $this->registrationIdMaxCount);
-
-        // Perform the calls (in parallel)
-        $this->responses = array();
-        foreach ($chunks as $registrationIds) {
-            $data['registration_ids'] = $registrationIds;
-            $this->responses[] = $this->browser->post($this->apiUrl, $headers, json_encode($data));
+        if (isset($options['to'])) {
+            $this->responses[] = $this->browser->post($this->apiUrl, $this->getHeaders(), json_encode($data));
+        } elseif (count($registrationIds) > 0) {
+            // Chunk number of registration ID's according to the maximum allowed by GCM
+            $chunks = array_chunk($registrationIds, $this->registrationIdMaxCount);
+            // Perform the calls (in parallel)
+            foreach ($chunks as $registrationIds) {
+                $data['registration_ids'] = $registrationIds;
+                $this->responses[] = $this->browser->post($this->apiUrl, $this->getHeaders(), json_encode($data));
+            }
         }
-        $this->browser->getClient()->flush();
 
-        // Determine success
+        $this->client->flush();
+
         foreach ($this->responses as $response) {
             $message = json_decode($response->getContent());
             if ($message === null || $message->success == 0 || $message->failure > 0) {
@@ -101,7 +108,40 @@ class Client
     }
 
     /**
+     * Sends the data to the given registration token, notification key, or topic via the GCM server.
+     *
+     * @param mixed  $data
+     * @param string $topic   The value must be a registration token, notification key, or topic. Default global topic.
+     * @param array  $options to add along with message, such as collapse_key, time_to_live, delay_while_idle
+     *
+     * @return bool
+     */
+    public function sendTo($data, $topic = '/topics/global', array $options = [])
+    {
+        $options['to'] = $topic;
+
+        return $this->send($data, [], $options);
+    }
+
+    /**
+     * Returns the headers.
+     *
      * @return array
+     */
+    protected function getHeaders()
+    {
+        $headers = [
+            'Authorization: key='.$this->apiKey,
+            'Content-Type: application/json',
+        ];
+
+        return $headers;
+    }
+
+    /**
+     * Returns the responses.
+     *
+     * @return Response[]
      */
     public function getResponses()
     {
